@@ -528,8 +528,8 @@ def send_email(html_body,first_day_of_month, date_until):
     # Create a new SES resource and specify a region.
     #client = boto3.client('ses',region_name=AWS_REGION)
     client = boto3.client('ses',region_name=AWS_REGION,
-    aws_access_key_id='AKIAI56PDHF6BVBHBGSQ',
-    aws_secret_access_key='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')
+    aws_access_key_id=AWS_ACCESS_KEY,
+    aws_secret_access_key=AWS_ACCESS_PW)
 
     # Try to send the email.
     try:
