@@ -17,6 +17,7 @@ import random
 
 import get_download_folders as wFolders
 
+#Custom Private Information -- DO NOT SHARE
 YOUR_DISCOVER_USERNAME = ''
 YOUR_DISCOVER_PW = ''
 
