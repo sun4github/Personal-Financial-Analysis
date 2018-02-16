@@ -1,4 +1,4 @@
-#2018-02-09 SK: Personal Financial analysis Integrated version & Emailer
+#2018-02-09 SK:  Financial analysis Interactive version
 
 import re
 import time
@@ -32,8 +32,6 @@ AWS_ACCESS_PW = ''
 SENDER_EMAIL_ADDRESS = "Sender Name <senderemailaddress@example.com>"
 RECIPIENT_EMAIL_ADDRESS_LIST = [recipient1_email_address,recipient2_email_address]
 TYPICAL_SALARY_INCOME  = 0
-
-
 
 # using binary search - not used
 def findTransactionCategory(item_desc):
@@ -356,11 +354,14 @@ def main(file_name, data_source):
             #continue if file not found
             print('File not found.')
             exit()
+      
 
     #earliest_date = datetime.datetime.today()
     earliest_date = None
     #latest_date = datetime.datetime.today()
     latest_date = None
+
+    # load transactions from data file into the list
 
     line_cnt = 1 
 
@@ -396,10 +397,21 @@ def main(file_name, data_source):
     print('Earliest date in dataset is ' + earliest_date.strftime('%Y-%m-%d'))
     print('Latest date in dataset is ' + latest_date.strftime('%Y-%m-%d'))
     print('')
-    
-    start_date = earliest_date
-   
-    end_date = latest_date
+
+    print('Specify the Starting Date to load in 20170801 format (enter to skip)')
+    start_date = input()
+    if(len(start_date) == 0):
+        start_date = earliest_date
+    else:
+        start_date = datetime.datetime.strptime(start_date,'%Y%m%d')
+
+    print('Specify the Ending Date file to load in 20170801 format (enter to skip)')
+    end_date = input()
+    if(len(end_date) == 0):
+        end_date = latest_date
+    else:
+        end_date = datetime.datetime.strptime(end_date,'%Y%m%d')
+
 
     total_expenses = 0
     total_income = 0
@@ -419,7 +431,13 @@ def main(file_name, data_source):
                 total_income = total_income + trans_obj.amount
             elif((trans_obj.amount < 0 and deposits_have_negative_sign == 0 ) or (trans_obj.amount > 0 and deposits_have_negative_sign == 1)):
                 total_expenses =  total_expenses + trans_obj.amount
-               
+           
+
+    # special case for earlier part of the month when that months salary is deposted on the last days of the
+    # previous month, as salary is often deposted on 30th or 31st of prev month, manually add the salary.
+    # uncomment it out if this does not suite your case
+    #if(total_income < TYPICAL_SALARY_INCOME and data_source=="ally"):
+        #total_income = TYPICAL_SALARY_INCOME + total_income
     
     summary_remaining = total_income + total_expenses
     print('')
@@ -428,12 +446,6 @@ def main(file_name, data_source):
     print('Total expenses is ' + '{:,.2f}'.format(total_expenses))
     print('Summary is ' + '{:,.2f}'.format(summary_remaining))
     print('')
-
-    # special case for earlier part of the month when that months salary is deposted on the last days of the
-    # previous month, as salary is often deposted on 30th or 31st of prev month, manually add the salary.
-    # uncomment it out if this does not suite your case
-    #if(total_income < TYPICAL_SALARY_INCOME and data_source=="ally"):
-        #total_income = TYPICAL_SALARY_INCOME + total_income
 
     sortTransactionCategorySummaryList()
 
@@ -452,23 +464,25 @@ def main(file_name, data_source):
     nf = final_item(total_income, total_expenses, summary_remaining , actual_remaining, summary_list, data_source)
     final_list.append(nf)
 
-#   Exclusive for interactive version 
-##    print('Specify any category to research further (enter to skip & exit))')
-##    category_to_research = input()
-##
-##
-##    while(len(category_to_research) > 0):
-##        #category_to_research = "Utilities & Fixed Costs"
-##        # analysis of other category transactions
-##        for category_obj in summary_list:
-##            #print('searching for ' + category_to_research+ ' in ' + category_obj.category )
-##            m = re.match(category_to_research,category_obj.category, flags=re.IGNORECASE)
-##            if(m != None):
-##                for other_source in category_obj.source_list:
-##                    print(other_source)
-##        print('')
-##        print('Specify any category to research further (enter to skip & exit)')
-##        category_to_research = input()
+
+    print('Specify any category to research further (enter to skip & exit))')
+    category_to_research = input()
+
+
+    while(len(category_to_research) > 0):
+        #category_to_research = "Utilities & Fixed Costs"
+        # analysis of other category transactions
+        for category_obj in summary_list:
+            #print('searching for ' + category_to_research+ ' in ' + category_obj.category )
+            m = re.match('^' + category_to_research + '$',category_obj.category, flags=re.IGNORECASE)
+            if(m != None):
+                for other_source in category_obj.source_list:
+                    print(other_source)
+        print('')
+        print('Specify any category to research further (enter to skip & exit)')
+        category_to_research = input()
+
+
 
 
 def send_email(html_body,first_day_of_month, date_until):
@@ -514,8 +528,8 @@ def send_email(html_body,first_day_of_month, date_until):
     # Create a new SES resource and specify a region.
     #client = boto3.client('ses',region_name=AWS_REGION)
     client = boto3.client('ses',region_name=AWS_REGION,
-    aws_access_key_id=AWS_ACCESS_KEY,
-    aws_secret_access_key=AWS_ACCESS_KEY_PW)
+    aws_access_key_id='AKIAI56PDHF6BVBHBGSQ',
+    aws_secret_access_key='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')
 
     # Try to send the email.
     try:
@@ -552,121 +566,128 @@ def send_email(html_body,first_day_of_month, date_until):
         print("Email sent! Message ID:"),
         print(response['ResponseMetadata']['RequestId'])
 
-
-        
-
-
 # MAIN program area
 localDirectory = wFolders.get_download_path()
 localDirectory = localDirectory + '\\'
 
-#final lists - used for email
+#final lists
 final_list = []
+
 
 todays_date = datetime.datetime.today()
 
 date_today_formatted = todays_date.strftime('%Y%m%d')
 
+print('Specify discover/ally to perform analysis')
+data_source = input()
 
-# ---- SECTION 1: PROCESS ALLY STATEMENT ---
-print('Discover Statement')
+if(data_source == 'discover'):
+    # ---- SECTION 1: PROCESS ALLY STATEMENT ---
+    print('Getting Discover Statement')
 
-dDownloader.download_this_month_csv()
+    file_name = 'DFS-Search-' + date_today_formatted + '.csv'
+    localFinFile = localDirectory + file_name
 
-file_name = 'DFS-Search-' + date_today_formatted + '.csv'
-localFinFile = localDirectory + file_name
+    path_to_file = Path(localFinFile)
 
-path_to_file = Path(localFinFile)
-count = 0
-while (path_to_file.is_file() == False):
-    time.sleep(20)
-    count = count + 1
-    if(count > 10):
-        print('Discover download failed')
-        exit();
+    if(path_to_file.is_file() == False):
+       #no temp file exists - get it from server
+       dDownloader.download_this_month_csv()
 
-
-# declare a list to hold events
-transaction_list = []
-
-#clear the summary list
-summary_list = []
-
-is_first_line_header = dConfig.is_first_line_header
-
-deposits_have_negative_sign = dConfig.deposits_have_negative_sign
-
-#header identification
-# do not change the header field types from ex. date to datetime or transaction type should stay the same text
-header_position = dConfig.header_position
-
-# array of dictionaries. Each dictionary entry is a keyword & category
-Transaction_Categories_list = dConfig.Transaction_Categories_list
-
-other_obj = Cat_Summary('Other',0,'')
-
-#call the main method to parse discover statement
-main(localFinFile,"discover")
-
-os.remove(localFinFile)
-
-# ---- SECTION 2: PROCESS ALLY STATEMENT ---
-print('Ally Statement')
-
-aDownloader.download_this_month_csv()
-
-file_name = "transactions.csv"
-
-localFinFile = localDirectory + file_name
-
-path_to_file = Path(localFinFile)
-count = 0
-while (path_to_file.is_file() == False):
-    time.sleep(20)
-    count = count + 1
-    if(count > 10):
-        print('Discover download failed')
-        exit();
+    
+    count = 0
+    while (path_to_file.is_file() == False):
+        time.sleep(20)
+        count = count + 1
+        if(count > 10):
+            print('Discover download failed')
+            exit();
 
 
-# declare a list to hold events
-transaction_list = []
+    # declare a list to hold events
+    transaction_list = []
 
-#clear the summary list
-summary_list = []
+    #clear the summary list
+    summary_list = []
 
-is_first_line_header = aConfig.is_first_line_header
+    is_first_line_header = dConfig.is_first_line_header
 
-deposits_have_negative_sign = aConfig.deposits_have_negative_sign
+    deposits_have_negative_sign = dConfig.deposits_have_negative_sign
 
-#header identification
-# do not change the header field types from ex. date to datetime or transaction type should stay the same text
-header_position = aConfig.header_position
+    #header identification
+    # do not change the header field types from ex. date to datetime or transaction type should stay the same text
+    header_position = dConfig.header_position
 
-# array of dictionaries. Each dictionary entry is a keyword & category
-Transaction_Categories_list = aConfig.Transaction_Categories_list
+    # array of dictionaries. Each dictionary entry is a keyword & category
+    Transaction_Categories_list = dConfig.Transaction_Categories_list
 
-other_obj = Cat_Summary('Other',0,'')
+    other_obj = Cat_Summary('Other',0,'')
 
-#call the main method to parse ally statement
-main(localFinFile,"ally")
+    #call the main method to parse discover statement
+    main(localFinFile,"discover")
 
-os.remove(localFinFile)
+    print('Delete discover file (y/n) ?')
+    delete_input_file = input()
+    if(delete_input_file == 'y'):
+        os.remove(localFinFile)
+
+    
+elif (data_source == "ally"):
+    # ---- SECTION 2: PROCESS ALLY STATEMENT ---
+    print('Getting Ally Statement')
+
+    file_name = "transactions.csv"
+
+    localFinFile = localDirectory + file_name
+
+    path_to_file = Path(localFinFile)
+
+    if(path_to_file.is_file() == False):
+       #no temp file exists - get it from server
+       aDownloader.download_this_month_csv()
+       
+       
+    count = 0
+    while (path_to_file.is_file() == False):
+        time.sleep(20)
+        count = count + 1
+        if(count > 10):
+            print('Discover download failed')
+            exit();
+
+
+    # declare a list to hold events
+    transaction_list = []
+
+    #clear the summary list
+    summary_list = []
+
+    is_first_line_header = aConfig.is_first_line_header
+
+    deposits_have_negative_sign = aConfig.deposits_have_negative_sign
+
+    #header identification
+    # do not change the header field types from ex. date to datetime or transaction type should stay the same text
+    header_position = aConfig.header_position
+
+    # array of dictionaries. Each dictionary entry is a keyword & category
+    Transaction_Categories_list = aConfig.Transaction_Categories_list
+
+    other_obj = Cat_Summary('Other',0,'')
+
+    #call the main method to parse ally statement
+    main(localFinFile,"ally")
+
+    print('Delete ally temp file (y/n) ?')
+    delete_input_file = input()
+    if(delete_input_file == 'y'):
+        os.remove(localFinFile)
+    
 
 # -- ADD/REMOVE SECTIONS as per your financial requirements (after including the corresponding, config and automated downloader files) ----
 
-#finally send a email
-htmlB = ''
-for fin_obj in final_list:
-    htmlB = htmlB + fin_obj.ret_info() + '<br />'
+    
 
-todays_date = datetime.datetime.today()
-
-first_day_of_month = todays_date.strftime('%m') + '/01/' + todays_date.strftime('%Y')
-date_until = todays_date.strftime('%m/%d/%Y')
-
-#send email using AWS SES SDK
-send_email(htmlB, first_day_of_month, date_until)
 
 
 
