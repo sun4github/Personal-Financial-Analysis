@@ -21,7 +21,7 @@ localDirectory = wFolders.get_download_path()
 def set_firefox_download_preferences():
     ally_firefox_profile.set_preference("browser.download.folderList",1);
     ally_firefox_profile.set_preference("browser.download.manager.showWhenStarting",False);
-    firefoxProfile.set_preference("browser.download.dir",localDirectory)
+    ally_firefox_profile.set_preference("browser.download.dir",localDirectory)
     ally_firefox_profile.set_preference("browser.helperApps.alwaysAsk.force",False);
     ally_firefox_profile.set_preference("browser.helperApps.neverAsk.saveToDisk","text/csv;")
 
