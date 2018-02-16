@@ -515,7 +515,7 @@ def send_email(html_body,first_day_of_month, date_until):
     #client = boto3.client('ses',region_name=AWS_REGION)
     client = boto3.client('ses',region_name=AWS_REGION,
     aws_access_key_id=AWS_ACCESS_KEY,
-    aws_secret_access_key=AWS_ACCESS_KEY_PW)
+    aws_secret_access_key=AWS_ACCESS_PW)
 
     # Try to send the email.
     try:
