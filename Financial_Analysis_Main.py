@@ -717,8 +717,8 @@ lead_the_analysis()
 	#scheduler = BlockingScheduler()   
 	
 	##run the job every 3 days starting from monday, at 9 am, 5 minutes
-	#scheduler.add_job(tick, 'cron',day_of_week='sat',hour=0,minute=19)
-	#scheduler.add_job(lead_the_analysis, 'cron',day_of_week='sat',hour=0,minute=19)
+	#scheduler.add_job(tick, 'cron',day_of_week='*/3',hour=9,minute=5)
+	#scheduler.add_job(lead_the_analysis, 'cron',day_of_week='*/3',hour=9,minute=5)
 	#print('Press Ctrl+{0} to exit'.format('Break' if os.name == 'nt' else 'C'))
 
 	#try:
