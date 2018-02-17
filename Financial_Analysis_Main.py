@@ -464,21 +464,22 @@ def process_file(localFinFile, data_source, is_current_account_the_salary_accoun
 	#print('is_current_account_the_salary_account =' + str(is_current_account_the_salary_account))
 	if(total_income < salary_amount and data_source=="bank" and is_current_account_the_salary_account == "yes"):
 		total_income = salary_amount + total_income
-		print('Adjusted "total income" amount using provided salary = $' + '{:,.2f}'.format(total_income))
+		print('Adjusted "Total income" amount using provided salary = $' + '{:,.2f}'.format(total_income))
 	
 	print('')
 
 	sortTransactionCategorySummaryList()
 
 	actual_remaining = 0
-	#display each transaction summary
-	for sum_obj in summary_list:
-		sum_obj.printinfo()
-		if(sum_obj.category == 'Savings & Investments'):
-			actual_remaining = (total_income + total_expenses) +  (-1 * sum_obj.total)
-
 	if(data_source == "bank"):
-		print('Actual Remaining ("Total income" - "Total expenses") - All Savings & Investments is $' + '{:,.2f}'.format(actual_remaining))
+		#display each transaction summary
+		for sum_obj in summary_list:
+			sum_obj.printinfo()
+			if(sum_obj.category == 'Savings & Investments'):
+				actual_remaining = (total_income + total_expenses) +  (-1 * sum_obj.total)
+		
+		print('Actual Remaining ("Total income" - "Total expenses") + All Savings & Investments is $' + '{:,.2f}'.format(actual_remaining))
+	
 	print('')
 
 
