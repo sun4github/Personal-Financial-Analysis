@@ -449,13 +449,9 @@ def process_file(localFinFile, data_source, is_current_account_the_salary_accoun
 				total_expenses =  total_expenses + trans_obj.amount
 		   
 
-	summary_remaining = total_income + total_expenses
 	print('')
+	
 	print('Total income is ' + '{:,.2f}'.format(total_income))
-
-	print('Total expenses is ' + '{:,.2f}'.format(total_expenses))
-	print('Summary is ' + '{:,.2f}'.format(summary_remaining))
-
 	# special case for earlier part of the month when that months salary is deposted on the last days of the
 	# previous month, as salary is often deposted on 30th or 31st of prev month, manually add the salary.
 	# uncomment it out if this does not suite your case
@@ -466,6 +462,9 @@ def process_file(localFinFile, data_source, is_current_account_the_salary_accoun
 		total_income = salary_amount + total_income
 		print('Adjusted "Total income" amount using provided salary = $' + '{:,.2f}'.format(total_income))
 	
+	summary_remaining = total_income + total_expenses
+	print('Total expenses is ' + '{:,.2f}'.format(total_expenses))
+	print('Summary is ' + '{:,.2f}'.format(summary_remaining))
 	print('')
 
 	sortTransactionCategorySummaryList()
