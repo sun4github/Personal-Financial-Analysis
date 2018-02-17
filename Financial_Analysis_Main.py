@@ -24,6 +24,11 @@ from botocore.exceptions import ClientError
 # custom support files for inclusion
 import get_download_folders as wFolders
 
+#Job scheduler
+#https://apscheduler.readthedocs.io/en/latest/userguide.html
+from apscheduler.schedulers.blocking import BlockingScheduler
+
+
 
 def makeANoValueListFromConfigSection(config_section_as_dictionary):
 	newList = []
@@ -251,26 +256,27 @@ def split_line(line_to_split):
 
 
 class final_item:
-    def __init__(self, total_income, total_expenses, summary_remaining, actual_remaining, summary_list, data_source):
-        self.data_source = data_source
-        self.total_income = total_income
-        self.total_expenses = total_expenses
-        self.summary_remaining = summary_remaining
-        self.actual_remaining = actual_remaining
-        self.summary_list = summary_list
+	def __init__(self, total_income, total_expenses, summary_remaining, actual_remaining, summary_list, data_source, institution_name):
+		self.data_source = data_source
+		self.total_income = total_income
+		self.total_expenses = total_expenses
+		self.summary_remaining = summary_remaining
+		self.actual_remaining = actual_remaining
+		self.summary_list = summary_list
+		self.institution_name = institution_name
 
-    def ret_info(self):
-        summy = '''
-                    <h3>Data Source : ''' + self.data_source + '''</h3><br />
-                    <b>Total Income</b> : $''' + '{:,.2f}'.format(self.total_income) + '''<br />
-                    <b>Total Expenses</b> : $''' + '{:,.2f}'.format(self.total_expenses) + '''<br />
-                    <b>Summary</b> : $''' + '{:,.2f}'.format(self.summary_remaining) + '''<br />
-                    <b>Actual Remaining</b> : $''' + '{:,.2f}'.format(self.actual_remaining) + '''<br />
-                    <hr />'''
-        for sum_obj in self.summary_list:
-            summy = summy + sum_obj.retinfo() + '<br />'
-        summy = summy + '<hr color = "#DC143C" width="3px" />'
-        return summy
+	def ret_info(self):
+		summy = '''
+					<h3>Data Source : ''' + self.data_source + ''' & Institution : ''' + self.institution_name + ''' </h3><br />
+					<b>Total Income</b> : $''' + '{:,.2f}'.format(self.total_income) + '''<br />
+					<b>Total Expenses</b> : $''' + '{:,.2f}'.format(self.total_expenses) + '''<br />
+					<b>Summary</b> : $''' + '{:,.2f}'.format(self.summary_remaining) + '''<br />
+					<b>Actual Remaining</b> : $''' + '{:,.2f}'.format(self.actual_remaining) + '''<br />
+					<hr />'''
+		for sum_obj in self.summary_list:
+			summy = summy + sum_obj.retinfo() + '<br />'
+		summy = summy + '<hr color = "#DC143C" width="3px" />'
+		return summy
 
 
 class Transaction:
@@ -370,7 +376,7 @@ def categorize_transaction(tran_obj):
         
 
 
-def main(file_name, data_source, is_current_account_the_salary_account, salary_amount):
+def process_file(localFinFile, data_source, is_current_account_the_salary_account, salary_amount, institution_name):
         
 	if(localFinFile != None and len(localFinFile) != 0):
 		try:
@@ -471,7 +477,7 @@ def main(file_name, data_source, is_current_account_the_salary_account, salary_a
 
 
 
-	nf = final_item(total_income, total_expenses, summary_remaining , actual_remaining, summary_list, data_source)
+	nf = final_item(total_income, total_expenses, summary_remaining , actual_remaining, summary_list, data_source, institution_name)
 	final_list.append(nf)
 
 	if(RUN_MODE == 'Interactive'):
@@ -482,13 +488,14 @@ def main(file_name, data_source, is_current_account_the_salary_account, salary_a
 		while(len(category_to_research) > 0):
 			#category_to_research = "Utilities & Fixed Costs"
 			# analysis of other category transactions
+			print('')
 			for category_obj in summary_list:
 				#print('searching for ' + category_to_research+ ' in ' + category_obj.category )
-				m = re.match(category_to_research,category_obj.category, flags=re.IGNORECASE)
+				m = re.match('^' + category_to_research + '$',category_obj.category, flags=re.IGNORECASE)
 				if(m != None):
 					for other_source in category_obj.source_list:
 					   print(other_source)
-				print('')
+					   print('')
 			print('Specify any category to research further (enter to skip & exit)')
 			category_to_research = input()
 
@@ -577,6 +584,7 @@ def send_email(html_body,first_day_of_month, date_until):
 		
 
 # MAIN program area
+
 localDirectory = wFolders.get_download_path()
 #localDirectory = localDirectory + '\\'
 
@@ -585,105 +593,137 @@ final_list = []
 todays_date = datetime.datetime.today()
 #date_today_formatted = todays_date.strftime('%Y%m%d')
 
+is_first_line_header = 'no'
+deposits_have_negative_sign = 0
+
+other_obj = Cat_Summary('Other',0,'')
+header_position = {}
+Transaction_Categories_list = []
+# declare a list to hold events
+transaction_list = []
+
+#clear the summary list
+summary_list = []
+
+
 print('Running in Mode: ' + RUN_MODE)
+	
+def lead_the_analysis():
+	print('called main ' + localDirectory)
+	
+	for source_config_file in SOURCE_LIST:
+		try:
+			
+			dConfig = configparser.ConfigParser(allow_no_value=True)
+			dConfig.read(source_config_file)
+			
+			institution_name = dConfig['SETTINGS']['institution_name']
+			print(' ----------- Processing financial institution : ' + institution_name + ' --------------- ')
 
-for source_config_file in SOURCE_LIST:
-	try:
-		print('Discover Statement')
+			# run the automated downloader if setup
+			if(dConfig['SETTINGS']['auto_driver_exists'] == 'yes'):
+				module_name = importlib.import_module(dConfig['SETTINGS']['driver_module'])
+				module_path = dConfig['SETTINGS']['driver_module_file_path']	
+				auto_downloader_method = dConfig['SETTINGS']['driver_trigger_method']
+				#import_a_module_dynamically(auto_download_method,module_path)
+				get_data_method = getattr(module_name, auto_downloader_method)
+				get_data_method()
 
-		dConfig = configparser.ConfigParser(allow_no_value=True)
-		dConfig.read(source_config_file)
-		
-		institution_name = dConfig['SETTINGS']['institution_name']
-		print(' ----------- Processing financial institution : ' + institution_name + ' --------------- ')
+			#get the latest downloaded file that matches the prefix, ending with a .csv
+			download_csv_prefix = dConfig['SETTINGS']['download_csv_prefix']
+			last_modified_time = 0	
+			last_file = ''
+			for file in os.listdir(localDirectory):
+				if file.startswith(download_csv_prefix) and file.endswith('.csv'):
+					#print(os.path.join(localDirectory,file))
+					stat_result = os.lstat(os.path.join(localDirectory,file))
+					#print(stat_result)
+					if(stat_result.st_mtime > last_modified_time):
+						last_modified_time = stat_result.st_mtime
+						last_file = file
 
-		# run the automated downloader if setup
-		if(dConfig['SETTINGS']['auto_driver_exists'] == 'yes'):
-			module_name = importlib.import_module(dConfig['SETTINGS']['driver_module'])
-			module_path = dConfig['SETTINGS']['driver_module_file_path']	
-			auto_downloader_method = dConfig['SETTINGS']['driver_trigger_method']
-			#import_a_module_dynamically(auto_download_method,module_path)
-			get_data_method = getattr(module_name, auto_downloader_method)
-			get_data_method()
+	
+			file_name = last_file
+			localFinFile = os.path.join(localDirectory,file_name)
 
-		#get the latest downloaded file that matches the prefix, ending with a .csv
-		download_csv_prefix = dConfig['SETTINGS']['download_csv_prefix']
-		last_modified_time = 0		
-		for file in os.listdir(localDirectory):
-			if file.startswith(download_csv_prefix) and file.endswith('.csv'):
-				#print(os.path.join(localDirectory,file))
-				stat_result = os.lstat(os.path.join(localDirectory,file))
-				#print(stat_result)
-				if(stat_result.st_mtime > last_modified_time):
-					last_modified_time = stat_result.st_mtime
-					last_file = file
+			if(len(last_file) > 0):
+				print('Selected latest file: ' + localFinFile)
+			else:
+				raise ValueError('Source download failed')
 
+			# declare a list to hold events
+			global transaction_list
+			transaction_list = []
 
-		file_name = last_file
-		localFinFile = os.path.join(localDirectory,file_name)
+			#clear the summary list
+			global summary_list
+			summary_list = []
+			
+			global is_first_line_header
+			is_first_line_header = dConfig['SETTINGS']['is_first_line_header']
+			
+			global deposits_have_negative_sign
+			deposits_have_negative_sign = int(dConfig['SETTINGS']['deposits_have_negative_sign'])
 
-		print('Selected latest file: ' + localFinFile)
-		#old file_name = 'DFS-Search-' + date_today_formatted + '.csv'
-		#old localFinFile = localDirectory + file_name
+			#header identification
+			# do not change the header field types from ex. date to datetime or transaction type should stay the same text
 
-		path_to_file = Path(localFinFile)
-		count = 0
-		while (path_to_file.is_file() == False):
-			time.sleep(20)
-			count = count + 1
-			if(count > 10):
-				print('Discover download failed')
-				exit();
+			global header_position
+			header_position = makeADictionaryFromConfigSection(dConfig['HEADER POSITION'])
 
+			#print(header_position)
+			
 
-		# declare a list to hold events
-		transaction_list = []
+			# array of dictionaries. Each dictionary entry is a keyword & category
+			# prev: Transaction_Categories_list = dConfig.Transaction_Categories_list
+			global Transaction_Categories_list
+			Transaction_Categories_list = makeAKWListFromConfigSection(dConfig['TRANSACTION CATEGORY LIST'])
 
-		#clear the summary list
-		summary_list = []
+			#call the main method to parse discover statement
+			process_file(localFinFile,dConfig['SETTINGS']['source_type'],dConfig['SETTINGS']['salary_bank'],float(dConfig['SETTINGS']['salary_amount']),institution_name)
+			
+			os.remove(localFinFile)
+		except Exception as ex:
+			print('Something went wrong')
+			print('Exception: ' + str(ex))
+			
 
-		is_first_line_header = dConfig['SETTINGS']['is_first_line_header']
+	if(RUN_MODE == 'Emailer'):
+		#finally send a email
+		htmlB = ''
+		for fin_obj in final_list:
+			htmlB = htmlB + fin_obj.ret_info() + '<br />'
 
-		deposits_have_negative_sign = int(dConfig['SETTINGS']['deposits_have_negative_sign'])
+		todays_date = datetime.datetime.today()
 
-		#header identification
-		# do not change the header field types from ex. date to datetime or transaction type should stay the same text
+		first_day_of_month = todays_date.strftime('%m') + '/01/' + todays_date.strftime('%Y')
+		date_until = todays_date.strftime('%m/%d/%Y')
 
-		header_position = makeADictionaryFromConfigSection(dConfig['HEADER POSITION'])
+		#send email using AWS SES SDK
+		send_email(htmlB, first_day_of_month, date_until)
+	
+	print('')
+	print('********* Financial Analysis Complete **********')
 
-		#print(header_position)
+def tick():
+    print('Tick! The time is: %s' % datetime.datetime.now())
 
-		# array of dictionaries. Each dictionary entry is a keyword & category
-		# prev: Transaction_Categories_list = dConfig.Transaction_Categories_list
+# To run code directly	
+#tick()
+lead_the_analysis()
+	
+# To Schedule it as a task
+#if __name__ == '__main__':
+	#scheduler = BlockingScheduler()   
+	
+	##run the job every 3 days starting from monday, at 9 am, 5 minutes
+	#scheduler.add_job(tick, 'cron',day_of_week='sat',hour=0,minute=19)
+	#scheduler.add_job(lead_the_analysis, 'cron',day_of_week='sat',hour=0,minute=19)
+	#print('Press Ctrl+{0} to exit'.format('Break' if os.name == 'nt' else 'C'))
 
-		Transaction_Categories_list = makeAKWListFromConfigSection(dConfig['TRANSACTION CATEGORY LIST'])
-
-		other_obj = Cat_Summary('Other',0,'')
-
-		#call the main method to parse discover statement
-		main(localFinFile,dConfig['SETTINGS']['source_type'],dConfig['SETTINGS']['salary_bank'],float(dConfig['SETTINGS']['salary_amount']))
-		
-		os.remove(localFinFile)
-	except Exception as ex:
-		print('Something went wrong')
-		print('Exception: ' + str(ex))
-		
-
-if(RUN_MODE == 'Emailer'):
-	#finally send a email
-	htmlB = ''
-	for fin_obj in final_list:
-		htmlB = htmlB + fin_obj.ret_info() + '<br />'
-
-	todays_date = datetime.datetime.today()
-
-	first_day_of_month = todays_date.strftime('%m') + '/01/' + todays_date.strftime('%Y')
-	date_until = todays_date.strftime('%m/%d/%Y')
-
-	#send email using AWS SES SDK
-	send_email(htmlB, first_day_of_month, date_until)
-
-
-
+	#try:
+	#	scheduler.start()
+	#except (KeyboardInterrupt, SystemExit):
+	#	pass
 
 
