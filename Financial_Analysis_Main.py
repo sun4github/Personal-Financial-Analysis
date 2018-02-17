@@ -455,13 +455,18 @@ def process_file(localFinFile, data_source, is_current_account_the_salary_accoun
 
 	print('Total expenses is ' + '{:,.2f}'.format(total_expenses))
 	print('Summary is ' + '{:,.2f}'.format(summary_remaining))
-	print('')
 
 	# special case for earlier part of the month when that months salary is deposted on the last days of the
 	# previous month, as salary is often deposted on 30th or 31st of prev month, manually add the salary.
 	# uncomment it out if this does not suite your case
+	#print('salary_amount =' + str(salary_amount))
+	#print('data_source =' + str(data_source))
+	#print('is_current_account_the_salary_account =' + str(is_current_account_the_salary_account))
 	if(total_income < salary_amount and data_source=="bank" and is_current_account_the_salary_account == "yes"):
 		total_income = salary_amount + total_income
+		print('Adjusted "total income" amount using provided salary = $' + '{:,.2f}'.format(total_income))
+	
+	print('')
 
 	sortTransactionCategorySummaryList()
 
@@ -472,7 +477,8 @@ def process_file(localFinFile, data_source, is_current_account_the_salary_accoun
 		if(sum_obj.category == 'Savings & Investments'):
 			actual_remaining = (total_income + total_expenses) +  (-1 * sum_obj.total)
 
-	print('Actual Remaining is ' + '{:,.2f}'.format(actual_remaining))
+	if(data_source == "bank"):
+		print('Actual Remaining ("Total income" - "Total expenses") - All Savings & Investments is $' + '{:,.2f}'.format(actual_remaining))
 	print('')
 
 
@@ -725,5 +731,3 @@ lead_the_analysis()
 	#	scheduler.start()
 	#except (KeyboardInterrupt, SystemExit):
 	#	pass
-
-
