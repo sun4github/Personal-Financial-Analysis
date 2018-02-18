@@ -432,9 +432,24 @@ def process_file(localFinFile, data_source, is_current_account_the_salary_accoun
         print('Latest date in dataset is ' + latest_date.strftime('%Y-%m-%d'))
         print('')
 
-        start_date = earliest_date
+        if(RUN_MODE == 'Interactive'):
+                print('Specify the Starting Date to load in 20170801 format (enter to skip)')
+                start_date = input()
+                if(len(start_date) == 0):
+                    start_date = earliest_date
+                else:
+                    start_date = datetime.datetime.strptime(start_date,'%Y%m%d')
 
-        end_date = latest_date
+                print('Specify the Ending Date file to load in 20170801 format (enter to skip)')
+                end_date = input()
+                if(len(end_date) == 0):
+                    end_date = latest_date
+                else:
+                    end_date = datetime.datetime.strptime(end_date,'%Y%m%d')
+        else:
+               start_date = earliest_date
+               end_date = latest_date
+       
 
         total_expenses = 0
         total_income = 0
