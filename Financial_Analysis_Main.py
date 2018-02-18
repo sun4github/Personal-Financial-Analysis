@@ -502,13 +502,14 @@ def process_file(localFinFile, data_source, is_current_account_the_salary_accoun
 
         sortTransactionCategorySummaryList()
 
+        actual_remaining = 0
         #display each transaction summary
         for sum_obj in summary_list:
                 sum_obj.printinfo()
-                if(sum_obj.category == 'Savings & Investments'):
+                if(sum_obj.category == 'Savings & Investments' and data_source == "bank"):
                         actual_remaining = (total_income + total_expenses) +  (-1 * sum_obj.total)
 
-        actual_remaining = 0
+        
         if(data_source == "bank"):
                 print('Actual Remaining ("Total income" - "Total expenses") + All Savings & Investments is $' + '{:,.2f}'.format(actual_remaining))
 
@@ -775,5 +776,4 @@ lead_the_analysis()
 ##		scheduler.start()
 ##	except (KeyboardInterrupt, SystemExit):
 ##		pass
-
 
