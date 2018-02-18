@@ -256,7 +256,7 @@ def split_line(line_to_split):
 
 
 class final_item:
-	def __init__(self, total_income, total_expenses, summary_remaining, actual_remaining, summary_list, data_source, institution_name):
+	def __init__(self, total_income, total_expenses, summary_remaining, actual_remaining, summary_list, data_source, institution_name, is_total_income_adjusted):
 		self.data_source = data_source
 		self.total_income = total_income
 		self.total_expenses = total_expenses
@@ -264,19 +264,23 @@ class final_item:
 		self.actual_remaining = actual_remaining
 		self.summary_list = summary_list
 		self.institution_name = institution_name
+		self.is_total_income_adjusted = is_total_income_adjusted
 
 	def ret_info(self):
-		summy = '''
-					<h3>Data Source : ''' + self.data_source + ''' & Institution : ''' + self.institution_name + ''' </h3><br />
-					<b>Total Income</b> : $''' + '{:,.2f}'.format(self.total_income) + '''<br />
-					<b>Total Expenses</b> : $''' + '{:,.2f}'.format(self.total_expenses) + '''<br />
-					<b>Summary</b> : $''' + '{:,.2f}'.format(self.summary_remaining) + '''<br />
-					<b>Actual Remaining</b> : $''' + '{:,.2f}'.format(self.actual_remaining) + '''<br />
-					<hr />'''
-		for sum_obj in self.summary_list:
-			summy = summy + sum_obj.retinfo() + '<br />'
-		summy = summy + '<hr color = "#DC143C" width="3px" />'
-		return summy
+                summy = '''<h3>Data Source : ''' + self.data_source + ''' & Institution : ''' + self.institution_name + ''' </h3><br />'''
+                if(self.is_total_income_adjusted == True):
+                        summy = summy + ''' <b>Adjusted "Total income" amount using provided salary = </b> : $''' + '{:,.2f}'.format(self.total_income) + '''<br />'''
+                else:
+                        summy = summy + ''' <b>Total Income</b> : $''' + '{:,.2f}'.format(self.total_income) + '''<br />'''
+                summy = summy + '''        
+                                        <b>Total Expenses</b> : $''' + '{:,.2f}'.format(self.total_expenses) + '''<br />
+                                        <b>Summary</b> : $''' + '{:,.2f}'.format(self.summary_remaining) + '''<br />
+                                        <b>Actual Remaining ("Total income" - "Total expenses") + All Savings & Investments is </b> : $''' + '{:,.2f}'.format(self.actual_remaining) + '''<br />
+                                        <hr />'''
+                for sum_obj in self.summary_list:
+                        summy = summy + sum_obj.retinfo() + '<br />'
+                summy = summy + '<hr color = "#DC143C" width="3px" />'
+                return summy
 
 
 class Transaction:
@@ -293,20 +297,19 @@ class Transaction:
                 field_type = header_position[str(field_position)]
                 #print(str(field_position) + ' : ' + field_type);
                 if(field_type == "date"):
-                    try:
-                        self.date = datetime.datetime.strptime(field,'%Y-%m-%d')
-                    except ValueError:
                         try:
-                            self.date = datetime.datetime.strptime(field,'%Y/%m/%d')
+                                self.date = datetime.datetime.strptime(field,'%Y-%m-%d')
                         except ValueError:
-                            try:
-                                self.date = datetime.datetime.strptime(field,'%m/%d/%Y')
-                            except:
-                                print('Unknown date format')
-				raise Exception('Unknown date format')
-                                break
-                   
-                    field_position = field_position+1
+                                try:
+                                        self.date = datetime.datetime.strptime(field,'%Y/%m/%d')
+                                except ValueError:
+                                        try:
+                                                self.date = datetime.datetime.strptime(field,'%m/%d/%Y')
+                                        except:
+                                                print('Unknown date format')
+                                                raise Exception('Unknown date format')
+                                                break
+                        field_position = field_position+1
                 elif(field_type == "time"):
                     self.time = field
                     field_position = field_position+1
@@ -379,132 +382,135 @@ def categorize_transaction(tran_obj):
 
 def process_file(localFinFile, data_source, is_current_account_the_salary_account, salary_amount, institution_name):
         
-	if(localFinFile != None and len(localFinFile) != 0):
-		try:
-			with open(localFinFile ) as infile_object :
-				lines = infile_object.read().splitlines() # strips the newline at end of line
-				infile_object.close()
-		except Exception:
-				#continue if file not found
-				print('File not found.')
-				exit()
+        if(localFinFile != None and len(localFinFile) != 0):
+                try:
+                        with open(localFinFile ) as infile_object :
+                                lines = infile_object.read().splitlines() # strips the newline at end of line
+                                infile_object.close()
+                except Exception:
+                        #continue if file not found
+                        print('File not found.')
+                        exit()
 
-	#earliest_date = datetime.datetime.today()
-	earliest_date = None
-	#latest_date = datetime.datetime.today()
-	latest_date = None
+        #earliest_date = datetime.datetime.today()
+        earliest_date = None
+        #latest_date = datetime.datetime.today()
+        latest_date = None
 
-	line_cnt = 1 
+        line_cnt = 1 
 
-	#first line is header. Dso do not load it
-	if is_first_line_header =='yes':
-		header_line = 1
-	else:
-		header_line = 0
-
-
-	for line in lines:
-		if(line_cnt > header_line):
-			tsc = Transaction(line)
-			#print(line)
-			
-			if(earliest_date == None):
-				earliest_date = tsc.date
-			elif(tsc.date <= earliest_date):
-				earliest_date = tsc.date
-
-			if(latest_date == None):
-				latest_date = tsc.date
-			if(tsc.date >= latest_date):
-				latest_date = tsc.date
-			
-			transaction_list.append(tsc)
-				#tsc.printinfo()
-				#categorize_transaction(tsc)
-				#print('-------------------')
-		line_cnt = line_cnt+1
-
-	#clearScreen()
-	print('Earliest date in dataset is ' + earliest_date.strftime('%Y-%m-%d'))
-	print('Latest date in dataset is ' + latest_date.strftime('%Y-%m-%d'))
-	print('')
-
-	start_date = earliest_date
-
-	end_date = latest_date
-
-	total_expenses = 0
-	total_income = 0
-
-	summary_list.append(other_obj)
-
-	# categorize each transaction
-	for trans_obj in transaction_list:
-		#trans_obj.printinfo()
-		if((trans_obj.date >= start_date  ) and  (trans_obj.date <= end_date )):
-			categorize_transaction(trans_obj)
-
-			if((trans_obj.amount > 0 and deposits_have_negative_sign == 0 ) or (trans_obj.amount < 0 and deposits_have_negative_sign == 1)):
-				total_income = total_income + trans_obj.amount
-			elif((trans_obj.amount < 0 and deposits_have_negative_sign == 0 ) or (trans_obj.amount > 0 and deposits_have_negative_sign == 1)):
-				total_expenses =  total_expenses + trans_obj.amount
-		   
-
-	print('')
-	
-	print('Total income is ' + '{:,.2f}'.format(total_income))
-	# special case for earlier part of the month when that months salary is deposted on the last days of the
-	# previous month, as salary is often deposted on 30th or 31st of prev month, manually add the salary.
-	# uncomment it out if this does not suite your case
-	#print('salary_amount =' + str(salary_amount))
-	#print('data_source =' + str(data_source))
-	#print('is_current_account_the_salary_account =' + str(is_current_account_the_salary_account))
-	if(total_income < salary_amount and data_source=="bank" and is_current_account_the_salary_account == "yes"):
-		total_income = salary_amount + total_income
-		print('Adjusted "Total income" amount using provided salary = $' + '{:,.2f}'.format(total_income))
-	
-	summary_remaining = total_income + total_expenses
-	print('Total expenses is ' + '{:,.2f}'.format(total_expenses))
-	print('Summary is ' + '{:,.2f}'.format(summary_remaining))
-	print('')
-
-	sortTransactionCategorySummaryList()
-
-	actual_remaining = 0
-	if(data_source == "bank"):
-		#display each transaction summary
-		for sum_obj in summary_list:
-			sum_obj.printinfo()
-			if(sum_obj.category == 'Savings & Investments'):
-				actual_remaining = (total_income + total_expenses) +  (-1 * sum_obj.total)
-		
-		print('Actual Remaining ("Total income" - "Total expenses") + All Savings & Investments is $' + '{:,.2f}'.format(actual_remaining))
-	
-	print('')
+        #first line is header. Dso do not load it
+        if is_first_line_header =='yes':
+                header_line = 1
+        else:
+                header_line = 0
 
 
+        for line in lines:
+                if(line_cnt > header_line):
+                        tsc = Transaction(line)
+                        #print(line)
+                        
+                        if(earliest_date == None):
+                                earliest_date = tsc.date
+                        elif(tsc.date <= earliest_date):
+                                earliest_date = tsc.date
 
-	nf = final_item(total_income, total_expenses, summary_remaining , actual_remaining, summary_list, data_source, institution_name)
-	final_list.append(nf)
+                        if(latest_date == None):
+                                latest_date = tsc.date
+                        if(tsc.date >= latest_date):
+                                latest_date = tsc.date
+                        
+                        transaction_list.append(tsc)
+                                #tsc.printinfo()
+                                #categorize_transaction(tsc)
+                                #print('-------------------')
+                line_cnt = line_cnt+1
 
-	if(RUN_MODE == 'Interactive'):
-		# Exclusive for interactive version 
-		print('Specify any category to research further (enter to skip & exit))')
-		category_to_research = input()
+        #clearScreen()
+        print('Earliest date in dataset is ' + earliest_date.strftime('%Y-%m-%d'))
+        print('Latest date in dataset is ' + latest_date.strftime('%Y-%m-%d'))
+        print('')
 
-		while(len(category_to_research) > 0):
-			#category_to_research = "Utilities & Fixed Costs"
-			# analysis of other category transactions
-			print('')
-			for category_obj in summary_list:
-				#print('searching for ' + category_to_research+ ' in ' + category_obj.category )
-				m = re.match('^' + category_to_research + '$',category_obj.category, flags=re.IGNORECASE)
-				if(m != None):
-					for other_source in category_obj.source_list:
-					   print(other_source)
-					   print('')
-			print('Specify any category to research further (enter to skip & exit)')
-			category_to_research = input()
+        start_date = earliest_date
+
+        end_date = latest_date
+
+        total_expenses = 0
+        total_income = 0
+
+        summary_list.append(other_obj)
+
+        # categorize each transaction
+        for trans_obj in transaction_list:
+                #trans_obj.printinfo()
+                if((trans_obj.date >= start_date  ) and  (trans_obj.date <= end_date )):
+                        categorize_transaction(trans_obj)
+
+                        if((trans_obj.amount > 0 and deposits_have_negative_sign == 0 ) or (trans_obj.amount < 0 and deposits_have_negative_sign == 1)):
+                                total_income = total_income + trans_obj.amount
+                        elif((trans_obj.amount < 0 and deposits_have_negative_sign == 0 ) or (trans_obj.amount > 0 and deposits_have_negative_sign == 1)):
+                                total_expenses =  total_expenses + trans_obj.amount
+                   
+
+
+        print('')
+        print('Total income is ' + '{:,.2f}'.format(total_income))
+        is_total_income_adjusted = False
+        # special case for earlier part of the month when that months salary is deposted on the last days of the
+        # previous month, as salary is often deposted on 30th or 31st of prev month, manually add the salary.
+        # uncomment it out if this does not suite your case
+        #print('salary_amount =' + str(salary_amount))
+        #print('data_source =' + str(data_source))
+        #print('is_current_account_the_salary_account =' + str(is_current_account_the_salary_account))
+        if(total_income < salary_amount and data_source=="bank" and is_current_account_the_salary_account == "yes"):
+                is_total_income_adjusted = True
+                total_income = salary_amount + total_income
+                print('Adjusted "Total income" amount using provided salary = $' + '{:,.2f}'.format(total_income))
+
+        summary_remaining = total_income + total_expenses
+        print('Total expenses is ' + '{:,.2f}'.format(total_expenses))
+        print('Summary is ' + '{:,.2f}'.format(summary_remaining))
+
+        print('')
+
+        sortTransactionCategorySummaryList()
+
+        actual_remaining = 0
+        if(data_source == "bank"):
+                #display each transaction summary
+                for sum_obj in summary_list:
+                        sum_obj.printinfo()
+                        if(sum_obj.category == 'Savings & Investments'):
+                                actual_remaining = (total_income + total_expenses) +  (-1 * sum_obj.total)
+                
+                print('Actual Remaining ("Total income" - "Total expenses") + All Savings & Investments is $' + '{:,.2f}'.format(actual_remaining))
+
+        print('')
+
+
+
+        nf = final_item(total_income, total_expenses, summary_remaining , actual_remaining, summary_list, data_source, institution_name, is_total_income_adjusted)
+        final_list.append(nf)
+
+        if(RUN_MODE == 'Interactive'):
+                # Exclusive for interactive version 
+                print('Specify any category to research further (enter to skip & exit))')
+                category_to_research = input()
+
+                while(len(category_to_research) > 0):
+                        #category_to_research = "Utilities & Fixed Costs"
+                        # analysis of other category transactions
+                        print('')
+                        for category_obj in summary_list:
+                                #print('searching for ' + category_to_research+ ' in ' + category_obj.category )
+                                m = re.match('^' + category_to_research + '$',category_obj.category, flags=re.IGNORECASE)
+                                if(m != None):
+                                        for other_source in category_obj.source_list:
+                                           print(other_source)
+                                           print('')
+                        print('Specify any category to research further (enter to skip & exit)')
+                        category_to_research = input()
 
 
 def send_email(html_body,first_day_of_month, date_until):
@@ -717,22 +723,26 @@ def lead_the_analysis():
 	print('********* Financial Analysis Complete **********')
 
 def tick():
-    print('Tick! The time is: %s' % datetime.datetime.now())
+        print('')
+        print('Tick! The time is: %s' % datetime.datetime.now())
+        print('')
 
-# To run code directly	
+# To test code	
 #tick()
 lead_the_analysis()
 	
 # To Schedule it as a task
-#if __name__ == '__main__':
-	#scheduler = BlockingScheduler()   
-	
-	##run the job every 3 days starting from monday, at 9 am, 5 minutes
-	#scheduler.add_job(tick, 'cron',day_of_week='*/3',hour=9,minute=5)
-	#scheduler.add_job(lead_the_analysis, 'cron',day_of_week='*/3',hour=9,minute=5)
-	#print('Press Ctrl+{0} to exit'.format('Break' if os.name == 'nt' else 'C'))
+##if __name__ == '__main__':
+##	scheduler = BlockingScheduler()   
+##	print(' ~~~~~~~~~~~~~~~~~~~~~~~ TASK SCHEDULER ~~~~~~~~~~~~~~~~~~~~~~~~')
+##	print(' ~~~~~~ Runs Financial Analysis in Emailer mode every 3 days ~~~~~~~~~~')
+##	#run the job every 3 days starting from monday, at 9 am, 5 minutes
+##	scheduler.add_job(tick, 'cron',day_of_week='*/3',hour=9,minute=5)
+##	scheduler.add_job(lead_the_analysis, 'cron',day_of_week='*/3',hour=9,minute=5)
+##	print('Press Ctrl+{0} to exit'.format('Break' if os.name == 'nt' else 'C'))
+##
+##	try:
+##		scheduler.start()
+##	except (KeyboardInterrupt, SystemExit):
+##		pass
 
-	#try:
-	#	scheduler.start()
-	#except (KeyboardInterrupt, SystemExit):
-	#	pass
