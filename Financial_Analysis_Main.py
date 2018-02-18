@@ -303,6 +303,7 @@ class Transaction:
                                 self.date = datetime.datetime.strptime(field,'%m/%d/%Y')
                             except:
                                 print('Unknown date format')
+				raise Exception('Unknown date format')
                                 break
                    
                     field_position = field_position+1
