@@ -60,6 +60,7 @@ AWS_ACCESS_PW = main_config['SETTINGS']['AWS_ACCESS_PW']
 SENDER_EMAIL_ADDRESS = main_config['SETTINGS']['SENDER_EMAIL_ADDRESS']
 RECIPIENT_EMAIL_ADDRESS_LIST = makeANoValueListFromConfigSection(main_config['RECIPIENT_EMAIL_ADDRESS_LIST'])
 RUN_MODE = main_config['SETTINGS']['RUN_MODE']
+RUN_STAGE = main_config['SETTINGS']['RUN_STAGE']
 SOURCE_LIST = makeANoValueListFromConfigSection(main_config['FINANCIAL SOURCES'])
 
 #Custom Private Information - END -- DO NOT SHARE
@@ -217,38 +218,43 @@ class Cat_Summary:
 def split_line(line_to_split):
     lst = line_to_split.split(',')
     new_lst=[]
-    sq = False
+    single_field_got_split = False
     tmp = ''
-    reggie = re.compile('.*".+".*')
+    reggie = re.compile('.*".*".*')
     for item in lst:
-        ls = '"' in item
+        #print('raw item :' + str(item))
+        does_field_have_double_quote = '"' in item
         if(reggie.match(item) != None):
             closing_quotes_exist = True
         else:
             closing_quotes_exist = False
             
-        #print('item:' + item)
-        #print('ls:' + str(ls))
-        #print('sq:' + str(sq))
-        #print('closing_quotes_exist:' + str(closing_quotes_exist))
+##        print('item:' + item)
+##        print('does_field_have_double_quote:' + str(does_field_have_double_quote))
+##        print('single_field_got_split:' + str(single_field_got_split))
+##        print('closing_quotes_exist:' + str(closing_quotes_exist))
                
-        if(ls == True and sq == False):
+        if(does_field_have_double_quote == True and single_field_got_split == False):
             if(closing_quotes_exist == True):
-                sq = False
+                single_field_got_split = False
+                item = item.replace('"','')
                 new_lst.append(item)
             else:
-                sq = True
+                single_field_got_split = True
                 tmp = tmp + item
                 
-        elif(ls == False and sq == True):
+        elif(does_field_have_double_quote == False and single_field_got_split == True):
             tmp = tmp + item
-        elif(ls == True and sq == True):
+        elif(does_field_have_double_quote == True and single_field_got_split == True):
             tmp = tmp + item
             #print('tmp:' + tmp)
+            tmp = tmp.replace('"','')
             new_lst.append(tmp)
             tmp = ''
-            sq = False
+            single_field_got_split = False
         else:
+            #print('No complications case')
+            item = item.replace('"','')
             new_lst.append(item)
 
     #print(new_lst)
@@ -286,7 +292,7 @@ class final_item:
 class Transaction:
 
     def __init__(self, line):
-        
+        #print(header_position)
         if(len(line) > 0):
             #print(line)
             sublist = split_line(line)
@@ -295,7 +301,7 @@ class Transaction:
             for field in sublist:
                 #determine what current field position , is actually from config
                 field_type = header_position[str(field_position)]
-                #print(str(field_position) + ' : ' + field_type);
+                #print(str(field_position) + ' : ' + field_type + " field : " + field);
                 if(field_type == "date"):
                         try:
                                 self.date = datetime.datetime.strptime(field,'%Y-%m-%d')
@@ -323,7 +329,7 @@ class Transaction:
                     self.source = field
                     field_position = field_position + 1
             #self.printinfo()
-
+            
     
 
     def printinfo(self):
@@ -341,7 +347,9 @@ def findCategorySummaryObject(category_name):
         m = re.match('^' + category_name + '$',category_obj.category, flags=re.IGNORECASE)
         if(m != None):
             retObj = category_obj
+            #print('match found. returning summary object : ' + str(retObj.category))
             return retObj
+    #print('match not found. returning summary object : ' + str(retObj))
     return retObj
 
 
@@ -353,7 +361,6 @@ def categorize_transaction(tran_obj):
     #print(' categorizing source: ' + tran_obj.source)
     if((tran_obj.amount > 0 and deposits_have_negative_sign == 0 ) or (tran_obj.amount < 0 and deposits_have_negative_sign == 1)):
         tran_cat='Income'
-        #print(' matched to ' + tran_cat)
     elif((tran_obj.amount < 0 and deposits_have_negative_sign == 0 ) or (tran_obj.amount > 0 and deposits_have_negative_sign == 1 )):
         for cat_obj in Transaction_Categories_list:
             #print(cat_obj['KW'])
@@ -362,14 +369,18 @@ def categorize_transaction(tran_obj):
             if(re.search(cat_obj['KW'],tran_obj.source,flags=re.IGNORECASE) != None):
                 tran_cat=cat_obj['category']
                 break
-    
+
+    #print(' matched to ' + str(tran_cat))
     if(tran_cat != None):
         cat_sum_obj = findCategorySummaryObject(tran_cat)
+
         
         if(cat_sum_obj != None):
+            #print(' category ' + tran_cat  + ' does exist. Updating one')
             cat_sum_obj.update(tran_obj.amount,tran_obj.source + ' = ' + '{:,.2f}'.format(tran_obj.amount))
             return
         else:
+            #print(' category ' + tran_cat  + ' does not exist. Creating one')
             cat_sum_obj = Cat_Summary(tran_cat,tran_obj.amount,tran_obj.source + ' = ' + '{:,.2f}'.format(tran_obj.amount))
             summary_list.append(cat_sum_obj)
             return
@@ -491,14 +502,14 @@ def process_file(localFinFile, data_source, is_current_account_the_salary_accoun
 
         sortTransactionCategorySummaryList()
 
+        #display each transaction summary
+        for sum_obj in summary_list:
+                sum_obj.printinfo()
+                if(sum_obj.category == 'Savings & Investments'):
+                        actual_remaining = (total_income + total_expenses) +  (-1 * sum_obj.total)
+
         actual_remaining = 0
         if(data_source == "bank"):
-                #display each transaction summary
-                for sum_obj in summary_list:
-                        sum_obj.printinfo()
-                        if(sum_obj.category == 'Savings & Investments'):
-                                actual_remaining = (total_income + total_expenses) +  (-1 * sum_obj.total)
-                
                 print('Actual Remaining ("Total income" - "Total expenses") + All Savings & Investments is $' + '{:,.2f}'.format(actual_remaining))
 
         print('')
@@ -635,6 +646,7 @@ summary_list = []
 
 
 print('Running in Mode: ' + RUN_MODE)
+print('Running in Stage: ' + RUN_STAGE)
 	
 def lead_the_analysis():
 	print('called main ' + localDirectory)
@@ -709,8 +721,11 @@ def lead_the_analysis():
 
 			#call the main method to parse discover statement
 			process_file(localFinFile,dConfig['SETTINGS']['source_type'],dConfig['SETTINGS']['salary_bank'],float(dConfig['SETTINGS']['salary_amount']),institution_name)
+
+			# disable during testing
+			if(RUN_STAGE == 'PROD'):
+                                os.remove(localFinFile)
 			
-			os.remove(localFinFile)
 		except Exception as ex:
 			print('Something went wrong')
 			print('Exception: ' + str(ex))
@@ -760,4 +775,5 @@ lead_the_analysis()
 ##		scheduler.start()
 ##	except (KeyboardInterrupt, SystemExit):
 ##		pass
+
 
