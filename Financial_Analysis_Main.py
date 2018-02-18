@@ -693,10 +693,12 @@ def lead_the_analysis():
 			print('Something went wrong')
 			print('Exception: ' + str(ex))
 			
-	print('Would you like to receive the analysis in e-mail ?')
-	RUN_MODE = input()
-	
-	if(RUN_MODE == 'Emailer'):
+	if(RUN_MODE == 'Interactive'):
+		print('Would you like to receive the analysis in e-mail (yes/no) ?')
+		email_requested = input()
+		
+
+	if(RUN_MODE == 'Emailer' or email_requested == 'yes'):
 		#finally send a email
 		htmlB = ''
 		for fin_obj in final_list:
