@@ -693,7 +693,9 @@ def lead_the_analysis():
 			print('Something went wrong')
 			print('Exception: ' + str(ex))
 			
-
+	print('Would you like to receive the analysis in e-mail ?')
+	RUN_MODE = input()
+	
 	if(RUN_MODE == 'Emailer'):
 		#finally send a email
 		htmlB = ''
