@@ -57,6 +57,7 @@ main_config.read('config.ini')
 
 AWS_ACCESS_KEY = main_config['SETTINGS']['AWS_ACCESS_KEY']
 AWS_ACCESS_PW = main_config['SETTINGS']['AWS_ACCESS_PW']
+AWS_REGION = main_config['SETTINGS']['AWS_REGION']
 SENDER_EMAIL_ADDRESS = main_config['SETTINGS']['SENDER_EMAIL_ADDRESS']
 RECIPIENT_EMAIL_ADDRESS_LIST = makeANoValueListFromConfigSection(main_config['RECIPIENT_EMAIL_ADDRESS_LIST'])
 RUN_MODE = main_config['SETTINGS']['RUN_MODE']
@@ -554,9 +555,6 @@ def send_email(html_body,first_day_of_month, date_until):
     # set, comment the following variable, and the 
     # ConfigurationSetName=CONFIGURATION_SET argument below.
     #CONFIGURATION_SET = "ConfigSet"
-
-    # If necessary, replace us-west-2 with the AWS Region you're using for Amazon SES.
-    AWS_REGION = "us-east-1"
 
     # The subject line for the email.
     SUBJECT = """ Financial Summary from """ + first_day_of_month + """ till """ + date_until
