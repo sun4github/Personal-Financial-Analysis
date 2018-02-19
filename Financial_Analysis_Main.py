@@ -465,7 +465,8 @@ def process_file(localFinFile, data_source, is_current_account_the_salary_accoun
 
         total_expenses = 0
         total_income = 0
-
+        global other_obj
+        other_obj = Cat_Summary('Other',0,'')
         summary_list.append(other_obj)
 
         # categorize each transaction
@@ -556,6 +557,7 @@ def send_email(html_body,first_day_of_month, date_until):
     # ConfigurationSetName=CONFIGURATION_SET argument below.
     #CONFIGURATION_SET = "ConfigSet"
 
+    
     # The subject line for the email.
     SUBJECT = """ Financial Summary from """ + first_day_of_month + """ till """ + date_until
 
@@ -758,6 +760,13 @@ def tick():
 
 # To test code	
 #tick()
+#lead_the_analysis()
+	
+
+	
+
+# To test code	
+#tick()
 lead_the_analysis()
 	
 # To Schedule it as a task
@@ -774,4 +783,5 @@ lead_the_analysis()
 ##		scheduler.start()
 ##	except (KeyboardInterrupt, SystemExit):
 ##		pass
+
 
